@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Security operations</h1>
+    <p>Handle password resets and unlock accounts that were suspended or locked.</p>
+  </section>
+
+  <section class="grid panels">
+    <article class="panel">
+      <h2>Reset password</h2>
+      <form action="/security/reset-password" method="post">
+        <label>
+          User email
+          <input name="email" placeholder="john@company.com" required />
+        </label>
+        <button type="submit">Reset password</button>
+      </form>
+      <p class="small">Password reset assigns <strong>TempPass!2026</strong>.</p>
+    </article>
+
+    <article class="panel">
+      <h2>Unlock account</h2>
+      <form action="/security/unlock-user" method="post">
+        <label>
+          User email
+          <input name="email" placeholder="priya@company.com" required />
+        </label>
+        <button type="submit">Unlock user</button>
+      </form>
+      <p class="small">Unlocking also returns the user status to <strong>active</strong>.</p>
+    </article>
+  </section>
+
+  <section class="panel" style="margin-top: 20px;">
+    <h2>Current user security state</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Status</th>
+          <th>Locked</th>
+          <th>Temporary password</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+          <tr>
+            <td>{{ user.full_name }}</td>
+            <td>{{ user.email }}</td>
+            <td><span class="status-pill {{ user.status }}">{{ user.status }}</span></td>
+            <td>{{ "Yes" if user.locked else "No" }}</td>
+            <td>{{ user.password }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

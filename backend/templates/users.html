@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero">
+    <h1>User administration</h1>
+    <p>Create new employee accounts and review the current user directory.</p>
+  </section>
+
+  <section class="grid panels">
+    <article class="panel">
+      <h2>Directory</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th>Locked</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td>{{ user.full_name }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.department }}</td>
+              <td><span class="status-pill {{ user.status }}">{{ user.status }}</span></td>
+              <td>{{ "Yes" if user.locked else "No" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+
+    <article class="panel">
+      <h2>Create user</h2>
+      <form action="/users/create" method="post">
+        <label>
+          Full name
+          <input name="full_name" placeholder="Sarah Khan" required />
+        </label>
+        <label>
+          Work email
+          <input name="email" placeholder="sarah@company.com" required />
+        </label>
+        <label>
+          Department
+          <select name="department" required>
+            <option value="">Choose department</option>
+            <option>IT</option>
+            <option>HR</option>
+            <option>Finance</option>
+            <option>Operations</option>
+            <option>Sales</option>
+          </select>
+        </label>
+        <button type="submit">Create user</button>
+      </form>
+      <p class="small">New accounts are created with a temporary password: <strong>Welcome@123</strong>.</p>
+    </article>
+  </section>
+{% endblock %}

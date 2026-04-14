@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title or "IT Admin Panel" }}</title>
+    <style>
+      :root {
+        --bg: #f4efe6;
+        --panel: #fffaf2;
+        --panel-strong: #ffffff;
+        --text: #202020;
+        --muted: #6f685f;
+        --accent: #0d5c63;
+        --accent-soft: #d7ecee;
+        --danger: #a63d40;
+        --danger-soft: #f7dddd;
+        --line: #ded4c5;
+        --shadow: 0 18px 40px rgba(35, 31, 32, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, #efe3cd 0%, transparent 28%),
+          linear-gradient(180deg, #f6f1e8 0%, #f2ece2 100%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        padding: 28px 22px;
+        background: rgba(255, 250, 242, 0.88);
+        border-right: 1px solid var(--line);
+        backdrop-filter: blur(16px);
+      }
+
+      .brand {
+        margin: 0 0 22px;
+        font-size: 1.4rem;
+      }
+
+      .brand span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 400;
+      }
+
+      .nav-link {
+        display: block;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+        text-decoration: none;
+        background: transparent;
+      }
+
+      .nav-link.active,
+      .nav-link:hover {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .content {
+        padding: 32px;
+      }
+
+      .hero {
+        margin-bottom: 24px;
+      }
+
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        gap: 20px;
+      }
+
+      .grid.cards {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        margin-bottom: 22px;
+      }
+
+      .grid.panels {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+
+      .card,
+      .panel {
+        background: var(--panel);
+        border: 1px solid rgba(222, 212, 197, 0.8);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      .card {
+        padding: 20px;
+      }
+
+      .card .label {
+        display: block;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .card strong {
+        font-size: 2rem;
+      }
+
+      .panel {
+        padding: 24px;
+      }
+
+      .panel h2,
+      .panel h3 {
+        margin-top: 0;
+      }
+
+      .flash {
+        padding: 14px 16px;
+        border-radius: 14px;
+        margin-bottom: 18px;
+      }
+
+      .flash.message {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .flash.error {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        font-size: 0.95rem;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .status-pill.active {
+        background: #dcefe0;
+        color: #205732;
+      }
+
+      .status-pill.suspended {
+        background: #f3dfd6;
+        color: #914a2c;
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-weight: 600;
+      }
+
+      input,
+      select,
+      button {
+        font: inherit;
+      }
+
+      input,
+      select {
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: var(--panel-strong);
+      }
+
+      button {
+        justify-self: start;
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 18px;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+      }
+
+      .list {
+        margin: 0;
+        padding-left: 20px;
+        color: var(--muted);
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .content {
+          padding: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h1 class="brand">
+          Helix IT Ops
+          <span>Mock admin console for AI-browser automation</span>
+        </h1>
+        <nav>
+          <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">Dashboard</a>
+          <a class="nav-link {% if active_page == 'users' %}active{% endif %}" href="/users">Users</a>
+          <a class="nav-link {% if active_page == 'security' %}active{% endif %}" href="/security">Security</a>
+        </nav>
+      </aside>
+      <main class="content">
+        {% if message %}
+          <div class="flash message">{{ message }}</div>
+        {% endif %}
+        {% if error %}
+          <div class="flash error">{{ error }}</div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+</html>
