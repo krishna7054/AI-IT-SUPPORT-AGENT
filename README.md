@@ -83,6 +83,45 @@ ENABLE_GEMINI=true
 
 By default, the project runs in local deterministic mode so it is not blocked by Gemini free-tier quota. If you set `ENABLE_GEMINI=true`, the request parser can use Gemini when local parsing is ambiguous.
 
+## Docker deployment
+
+This app can be deployed as a single container because the dashboard and the browser agent run inside the same FastAPI service.
+
+### Build locally
+
+```bash
+docker build -t ai-it-support-agent .
+```
+
+### Run locally with Docker
+
+```bash
+docker run --rm -p 8000:8000 --env-file .env ai-it-support-agent
+```
+
+Open `http://127.0.0.1:8000`.
+
+### Where to add env values
+
+Local development:
+- Put them in `.env` in the project root.
+
+Docker local run:
+- Keep them in `.env` and pass them with `--env-file .env`.
+
+Render / Railway / other cloud platforms:
+- Do not upload `.env`.
+- Add the same values in the platform's environment variables dashboard.
+
+Recommended env values:
+
+```env
+ENABLE_GEMINI=false
+GEMINI_API_KEY=your_api_key_here
+```
+
+For this assignment, `ENABLE_GEMINI=false` is recommended so the deployed demo is not blocked by Gemini quota. The in-app browser agent will still run through Playwright.
+
 ## Run the app
 
 Optional: reset to the seeded demo users before a recording:
