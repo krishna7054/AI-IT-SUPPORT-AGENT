@@ -17,44 +17,6 @@
       margin-top: 20px;
     }
 
-    .status-box {
-      min-height: 92px;
-      white-space: pre-wrap;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 16px;
-    }
-
-    .status-box.pending {
-      color: var(--muted);
-    }
-
-    .status-box.success {
-      background: var(--accent-soft);
-      color: var(--accent);
-    }
-
-    .status-box.error {
-      background: var(--danger-soft);
-      color: var(--danger);
-    }
-
-    .log-box {
-      margin-top: 14px;
-      min-height: 180px;
-      max-height: 320px;
-      overflow: auto;
-      white-space: pre-wrap;
-      background: #1e1e1e;
-      color: #d8ead3;
-      border-radius: 16px;
-      padding: 16px;
-      font-family: Consolas, "Courier New", monospace;
-      font-size: 0.9rem;
-      line-height: 1.45;
-    }
-
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -79,6 +41,45 @@
       padding: 24px;
     }
 
+    .modal-status {
+      margin-top: 16px;
+      min-height: 96px;
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .modal-status.pending {
+      color: var(--muted);
+    }
+
+    .modal-status.success {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .modal-status.error {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .modal-log-box {
+      margin-top: 14px;
+      min-height: 180px;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      background: #1e1e1e;
+      color: #d8ead3;
+      border-radius: 16px;
+      padding: 16px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
     .modal-card textarea {
       width: 100%;
       min-height: 140px;
@@ -88,6 +89,18 @@
       border: 1px solid var(--line);
       font: inherit;
       background: var(--panel-strong);
+    }
+
+    .modal-entry.hidden {
+      display: none;
+    }
+
+    .modal-runner {
+      display: none;
+    }
+
+    .modal-runner.visible {
+      display: block;
     }
 
     .modal-actions {
@@ -153,21 +166,24 @@
     </article>
   </section>
 
-  <section class="panel automation-shell">
-    <h2>Automation status</h2>
-    <p class="small">Launch the browser agent directly from the dashboard. This is the easiest deployment-friendly demo flow.</p>
-    <div id="automation-status" class="status-box pending">No automation job is running yet.</div>
-    <div id="automation-logs" class="log-box">Waiting for a task run...</div>
-  </section>
-
   <div id="automation-modal" class="modal-backdrop" aria-hidden="true">
     <div class="modal-card">
       <h2>Run an IT support task</h2>
-      <p class="small">Paste a natural-language request and the app will trigger the browser agent in a separate headless session.</p>
-      <textarea id="automation-prompt" placeholder="Check if mohit@company.com exists, if not create him in IT, then assign a Slack license."></textarea>
-      <div class="modal-actions">
-        <button id="submit-automation-job" type="button">Run automation</button>
-        <button id="close-automation-modal" type="button">Cancel</button>
+      <div id="modal-entry" class="modal-entry">
+        <p class="small">Paste a natural-language request and the app will trigger the browser agent in a separate headless session.</p>
+        <textarea id="automation-prompt" placeholder="Check if mohit@company.com exists, if not create him in IT, then assign a Slack license."></textarea>
+        <div class="modal-actions">
+          <button id="submit-automation-job" type="button">Run automation</button>
+          <button id="close-automation-modal" type="button">Cancel</button>
+        </div>
+      </div>
+      <div id="modal-runner" class="modal-runner">
+        <p class="small">Automation is running. You can watch each browser action below.</p>
+        <div id="automation-status" class="modal-status pending">Enter a prompt and click Run automation.</div>
+        <div id="automation-logs" class="modal-log-box">Task updates will appear here.</div>
+        <div class="modal-actions">
+          <button id="close-runner-modal" type="button">Close</button>
+        </div>
       </div>
     </div>
   </div>
@@ -181,13 +197,17 @@
       const closeButton = document.getElementById("close-automation-modal");
       const submitButton = document.getElementById("submit-automation-job");
       const promptInput = document.getElementById("automation-prompt");
+      const modalEntry = document.getElementById("modal-entry");
+      const modalRunner = document.getElementById("modal-runner");
       const statusBox = document.getElementById("automation-status");
       const logsBox = document.getElementById("automation-logs");
+      const closeRunnerButton = document.getElementById("close-runner-modal");
       let pollTimer = null;
+      let closeTimer = null;
 
       function setStatus(message, tone) {
         statusBox.textContent = message;
-        statusBox.className = `status-box ${tone}`;
+        statusBox.className = `modal-status ${tone}`;
       }
 
       function setLogs(logs) {
@@ -196,14 +216,31 @@
       }
 
       function openModal() {
+        if (closeTimer) {
+          window.clearTimeout(closeTimer);
+          closeTimer = null;
+        }
         modal.classList.add("open");
         modal.setAttribute("aria-hidden", "false");
+        modalEntry.classList.remove("hidden");
+        modalRunner.classList.remove("visible");
         promptInput.focus();
       }
 
       function closeModal() {
+        if (pollTimer) {
+          window.clearTimeout(pollTimer);
+          pollTimer = null;
+        }
         modal.classList.remove("open");
         modal.setAttribute("aria-hidden", "true");
+        modalEntry.classList.remove("hidden");
+        modalRunner.classList.remove("visible");
+      }
+
+      function showRunner() {
+        modalEntry.classList.add("hidden");
+        modalRunner.classList.add("visible");
       }
 
       async function pollJob(jobId) {
@@ -225,7 +262,10 @@
 
         if (job.status === "completed") {
           setStatus(`Status: completed\n\nTask complete\n\n${job.result}`, "success");
-          window.setTimeout(() => window.location.reload(), 1800);
+          closeTimer = window.setTimeout(() => {
+            closeModal();
+            window.location.reload();
+          }, 2200);
           return;
         }
 
@@ -234,6 +274,7 @@
 
       openButton.addEventListener("click", openModal);
       closeButton.addEventListener("click", closeModal);
+      closeRunnerButton.addEventListener("click", closeModal);
       modal.addEventListener("click", (event) => {
         if (event.target === modal) {
           closeModal();
@@ -253,6 +294,7 @@
         }
 
         submitButton.disabled = true;
+        showRunner();
         setStatus(`Submitting job...\n\n${prompt}`, "pending");
         setLogs([`Submitting job for prompt: ${prompt}`]);
 
@@ -269,7 +311,7 @@
             return;
           }
 
-          closeModal();
+          showRunner();
           setStatus(`Status: queued\n\nPrompt: ${prompt}`, "pending");
           pollJob(payload.job_id);
         } catch (error) {
