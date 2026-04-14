@@ -3,7 +3,7 @@
 {% block content %}
   <section class="hero">
     <h1>IT support cockpit</h1>
-    <p>Use this mock admin panel to create users, reset passwords, and unlock accounts.</p>
+    <p>Use this mock admin panel to create users, reset passwords, unlock accounts, and assign licenses.</p>
   </section>
 
   <section class="grid cards">
@@ -19,6 +19,10 @@
       <span class="label">Locked users</span>
       <strong>{{ stats.locked_users }}</strong>
     </article>
+    <article class="card">
+      <span class="label">Assigned licenses</span>
+      <strong>{{ stats.assigned_licenses }}</strong>
+    </article>
   </section>
 
   <section class="grid panels">
@@ -28,6 +32,8 @@
         <li>Create a new employee account.</li>
         <li>Reset a user's password.</li>
         <li>Unlock a locked employee account.</li>
+        <li>Assign a SaaS license to a user.</li>
+        <li>Handle multi-step create-if-missing then assign-license requests.</li>
       </ul>
     </article>
     <article class="panel">
@@ -36,6 +42,7 @@
         <li>Create a new user named Sarah Khan with email sarah@company.com in Finance.</li>
         <li>Reset password for john@company.com.</li>
         <li>Unlock account for priya@company.com.</li>
+        <li>Check if mohit@company.com exists, if not create him in IT, then assign a Slack license.</li>
       </ul>
     </article>
   </section>

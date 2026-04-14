@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="hero">
+    <h1>License administration</h1>
+    <p>Assign software access and verify which licenses are currently active for each employee.</p>
+  </section>
+
+  <section class="grid panels">
+    <article class="panel">
+      <h2>Assign license</h2>
+      <form action="/licenses/assign" method="post">
+        <label>
+          User email
+          <input name="email" placeholder="alice@company.com" required />
+        </label>
+        <label>
+          License
+          <select name="license_name" required>
+            <option value="">Choose license</option>
+            {% for license_name in licenses %}
+              <option>{{ license_name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Assign license</button>
+      </form>
+      <p class="small">Bonus workflow: the agent can create a user first if they do not already exist.</p>
+    </article>
+
+    <article class="panel">
+      <h2>Available licenses</h2>
+      <ul class="list">
+        {% for license_name in licenses %}
+          <li>{{ license_name }}</li>
+        {% endfor %}
+      </ul>
+    </article>
+  </section>
+
+  <section class="panel" style="margin-top: 20px;">
+    <h2>Current license assignments</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>License</th>
+          <th>Assigned at</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for assignment in assignments %}
+          <tr>
+            <td>{{ assignment.full_name }}</td>
+            <td>{{ assignment.email }}</td>
+            <td>{{ assignment.license_name }}</td>
+            <td>{{ assignment.assigned_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

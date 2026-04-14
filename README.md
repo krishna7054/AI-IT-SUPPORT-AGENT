@@ -11,6 +11,8 @@ This project delivers a small but realistic IT support automation demo:
 - Create a new user account
 - Reset a user's password
 - Unlock a locked user account
+- Assign a SaaS license to a user
+- Bonus multi-step flow: check if a user exists, create them if needed, then assign a license
 - Persist data in SQLite so changes remain visible between runs
 - Seed realistic starter users for demos
 
@@ -21,6 +23,7 @@ This project delivers a small but realistic IT support automation demo:
 - `SQLite` for persistence
 - `Playwright` for browser automation
 - `Gemini` for natural-language request parsing and browser decision-making
+- Local fallback parsing/planning when Gemini quota is exhausted
 
 ## Project structure
 
@@ -37,6 +40,7 @@ This project delivers a small but realistic IT support automation demo:
 |   `-- templates/
 |       |-- base.html
 |       |-- dashboard.html
+|       |-- licenses.html
 |       |-- security.html
 |       `-- users.html
 |-- scripts/
@@ -70,6 +74,14 @@ copy .env.example .env
 ```env
 GEMINI_API_KEY=your_api_key_here
 ```
+
+Optional:
+
+```env
+ENABLE_GEMINI=true
+```
+
+By default, the project runs in local deterministic mode so it is not blocked by Gemini free-tier quota. If you set `ENABLE_GEMINI=true`, the request parser can use Gemini when local parsing is ambiguous.
 
 ## Run the app
 
@@ -106,10 +118,13 @@ Example prompts:
 - `create a new user named Sarah Khan with email sarah@company.com in Finance`
 - `reset password for john@company.com`
 - `unlock account for priya@company.com`
+- `assign Slack license to alice@company.com`
+- `check if mohit@company.com exists, if not create him in IT, then assign a Slack license`
 
 The agent:
 
 - Parses the natural-language IT request with Gemini
+- Falls back to local parsing/planning if Gemini is rate-limited
 - Opens the browser with Playwright
 - Reads the current page state and visible controls
 - Chooses the next action from the live UI state
@@ -121,6 +136,7 @@ The agent:
 
 - `backend/main.py` defines the web routes and form actions.
 - `backend/database.py` initializes SQLite, seeds demo users, and handles user operations.
+- `backend/database.py` also stores license assignments for the bonus scenario.
 - `backend/templates/` contains the admin console pages.
 
 ### 2. AI browser agent
@@ -132,6 +148,10 @@ The agent:
   - `type`
   - `select`
   - `done`
+- The bonus flow adds conditional logic:
+  - Check whether the user exists on the Users page
+  - Create them only if needed
+  - Continue to the Licenses page and assign the requested product
 
 ### 3. Why this fits the assignment
 
@@ -147,15 +167,17 @@ The agent:
 3. Show that the new user appears in the directory.
 4. Run: `reset password for john@company.com`
 5. Show the updated password on the Security page.
-6. Optional third task: `unlock account for priya@company.com`
-7. Spend the last 30-40 seconds explaining:
+6. Run: `check if mohit@company.com exists, if not create him in IT, then assign a Slack license`
+7. Optional fourth task: `unlock account for priya@company.com`
+8. Spend the last 30-40 seconds explaining:
    - FastAPI + SQLite mock panel
-   - Gemini for request understanding and next-step planning
+   - Gemini with a local fallback for request understanding and next-step planning
    - Playwright for browser execution
    - Generic page-state-driven action loop instead of hardcoded flows
+   - Bonus conditional workflow for create-if-missing then assign-license
 
 ## Notes
 
 - This repo is ready for GitHub.
 - The SQLite database is ignored in git and is created automatically.
-- If Gemini returns malformed JSON, rerun the command once; the code validates model output and fails loudly rather than acting silently.
+- If Gemini quota is exhausted, the agent automatically falls back to deterministic local parsing and planning for the supported task set.

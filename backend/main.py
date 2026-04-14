@@ -11,6 +11,9 @@ from backend.database import create_user
 from backend.database import dashboard_stats
 from backend.database import init_db
 from backend.database import list_users
+from backend.database import assign_license
+from backend.database import available_licenses
+from backend.database import list_license_assignments
 from backend.database import reset_password
 from backend.database import unlock_user
 
@@ -92,6 +95,26 @@ def security_page(
     )
 
 
+@app.get("/licenses", response_class=HTMLResponse)
+def licenses_page(
+    request: Request,
+    message: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="licenses.html",
+        context={
+            "licenses": available_licenses(),
+            "assignments": list_license_assignments(),
+            "message": message,
+            "error": error,
+            "active_page": "licenses",
+            "title": "Licenses | Helix IT Ops",
+        },
+    )
+
+
 @app.post("/users/create")
 def create_user_action(
     full_name: str = Form(...),
@@ -121,3 +144,12 @@ def unlock_user_action(email: str = Form(...)):
     except LookupError as exc:
         return redirect_with_message("security_page", error=str(exc))
     return redirect_with_message("security_page", message="User unlocked successfully")
+
+
+@app.post("/licenses/assign")
+def assign_license_action(email: str = Form(...), license_name: str = Form(...)):
+    try:
+        assign_license(email=email, license_name=license_name)
+    except (LookupError, ValueError) as exc:
+        return redirect_with_message("licenses_page", error=str(exc))
+    return redirect_with_message("licenses_page", message="License assigned successfully")

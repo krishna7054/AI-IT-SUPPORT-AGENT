@@ -32,6 +32,18 @@ def init_db() -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS license_assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                license_name TEXT NOT NULL,
+                assigned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, license_name),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
         connection.commit()
 
     seed_users()
@@ -82,6 +94,7 @@ def seed_users() -> None:
 
 def reset_demo_data() -> None:
     with get_connection() as connection:
+        connection.execute("DROP TABLE IF EXISTS license_assignments")
         connection.execute("DROP TABLE IF EXISTS users")
         connection.commit()
     init_db()
@@ -200,8 +213,83 @@ def dashboard_stats() -> dict[str, int]:
             FROM users
             """
         ).fetchone()
+        license_totals = connection.execute(
+            """
+            SELECT COUNT(*) AS assigned_licenses
+            FROM license_assignments
+            """
+        ).fetchone()
     return {
         "total_users": int(totals["total_users"] or 0),
         "active_users": int(totals["active_users"] or 0),
         "locked_users": int(totals["locked_users"] or 0),
+        "assigned_licenses": int(license_totals["assigned_licenses"] or 0),
     }
+
+
+def available_licenses() -> list[str]:
+    return ["Google Workspace", "Slack", "Zoom", "VPN", "Okta"]
+
+
+def user_has_license(email: str, license_name: str) -> bool:
+    normalized_email = email.strip().lower()
+    normalized_license = license_name.strip().lower()
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT 1
+            FROM license_assignments la
+            JOIN users u ON u.id = la.user_id
+            WHERE lower(u.email) = ? AND lower(la.license_name) = ?
+            """,
+            (normalized_email, normalized_license),
+        ).fetchone()
+    return row is not None
+
+
+def assign_license(email: str, license_name: str) -> dict[str, Any]:
+    user = get_user_by_email(email)
+    normalized_license = license_name.strip()
+
+    if user is None:
+        raise LookupError("User not found.")
+    if not normalized_license:
+        raise ValueError("License is required.")
+    if normalized_license not in available_licenses():
+        raise ValueError("Unsupported license.")
+    if user_has_license(user["email"], normalized_license):
+        raise ValueError("License is already assigned to this user.")
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO license_assignments (user_id, license_name)
+            VALUES (?, ?)
+            """,
+            (user["id"], normalized_license),
+        )
+        connection.commit()
+
+    return {
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "license_name": normalized_license,
+    }
+
+
+def list_license_assignments() -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                la.id,
+                u.full_name,
+                u.email,
+                la.license_name,
+                la.assigned_at
+            FROM license_assignments la
+            JOIN users u ON u.id = la.user_id
+            ORDER BY la.assigned_at DESC, u.full_name COLLATE NOCASE
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
