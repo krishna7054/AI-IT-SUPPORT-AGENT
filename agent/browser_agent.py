@@ -232,6 +232,7 @@ def find_element(
     text_contains: str | None = None,
     href_contains: str | None = None,
     form_text_contains: str | None = None,
+    panel_text_contains: str | None = None,
 ) -> dict[str, Any] | None:
     for element in interactive_elements:
         if tag and element.get("tag") != tag:
@@ -243,6 +244,8 @@ def find_element(
         if href_contains and href_contains.lower() not in (element.get("href") or "").lower():
             continue
         if form_text_contains and form_text_contains.lower() not in (element.get("form_text") or "").lower():
+            continue
+        if panel_text_contains and panel_text_contains.lower() not in (element.get("panel_text") or "").lower():
             continue
         return element
     return None
@@ -380,7 +383,17 @@ def next_action_for_reset(task: SupportTask, page_state: dict[str, Any]) -> dict
         if security_link:
             return {"action": "click", "target_id": security_link["id"]}
 
-    email_input = find_element(interactive_elements, tag="input", name="email", form_text_contains="reset password")
+    email_input = find_element(
+        interactive_elements,
+        tag="input",
+        name="email",
+        form_text_contains="reset password",
+    ) or find_element(
+        interactive_elements,
+        tag="input",
+        name="email",
+        panel_text_contains="reset password",
+    )
     if email_input and email_input.get("value", "").strip().lower() != task.email:
         return {"action": "type", "target_id": email_input["id"], "text": task.email}
 
@@ -399,7 +412,17 @@ def next_action_for_unlock(task: SupportTask, page_state: dict[str, Any]) -> dic
         if security_link:
             return {"action": "click", "target_id": security_link["id"]}
 
-    email_input = find_element(interactive_elements, tag="input", name="email", form_text_contains="unlock account")
+    email_input = find_element(
+        interactive_elements,
+        tag="input",
+        name="email",
+        form_text_contains="unlock account",
+    ) or find_element(
+        interactive_elements,
+        tag="input",
+        name="email",
+        panel_text_contains="unlock account",
+    )
     if email_input and email_input.get("value", "").strip().lower() != task.email:
         return {"action": "type", "target_id": email_input["id"], "text": task.email}
 
