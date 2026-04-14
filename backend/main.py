@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
+from threading import Lock
+from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI, Form, Query, status
-from fastapi.responses import HTMLResponse, RedirectResponse
-from starlette.requests import Request
+from fastapi import FastAPI, Form, Query, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel
 from starlette.templating import Jinja2Templates
 
+from agent.browser_agent import run_agent
 from backend.database import create_user
 from backend.database import dashboard_stats
 from backend.database import init_db
@@ -19,13 +24,70 @@ from backend.database import unlock_user
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
     init_db()
+    app.state.automation_jobs = {}
+    app.state.automation_lock = Lock()
     yield
 
 
 app = FastAPI(title="Mock IT Admin Panel", lifespan=lifespan)
 templates = Jinja2Templates(directory="backend/templates")
+
+
+class AutomationRequest(BaseModel):
+    prompt: str
+
+
+def ensure_automation_state(app_instance: FastAPI) -> None:
+    if not hasattr(app_instance.state, "automation_jobs"):
+        app_instance.state.automation_jobs = {}
+    if not hasattr(app_instance.state, "automation_lock"):
+        app_instance.state.automation_lock = Lock()
+
+
+def update_job_state(app_instance: FastAPI, job_id: str, **fields: Any) -> None:
+    ensure_automation_state(app_instance)
+    lock: Lock = app_instance.state.automation_lock
+    with lock:
+        current = app_instance.state.automation_jobs.get(job_id, {})
+        current.update(fields)
+        app_instance.state.automation_jobs[job_id] = current
+
+
+def append_job_log(app_instance: FastAPI, job_id: str, message: str) -> None:
+    ensure_automation_state(app_instance)
+    lock: Lock = app_instance.state.automation_lock
+    with lock:
+        current = app_instance.state.automation_jobs.get(job_id, {})
+        logs = list(current.get("logs", []))
+        logs.append(message)
+        current["logs"] = logs[-80:]
+        current["last_message"] = message
+        app_instance.state.automation_jobs[job_id] = current
+
+
+def run_automation_job(app_instance: FastAPI, job_id: str, prompt: str, base_url: str) -> None:
+    update_job_state(app_instance, job_id, status="running", result=None, error=None)
+
+    def progress_logger(message: str) -> None:
+        append_job_log(app_instance, job_id, message)
+
+    try:
+        result = asyncio.run(
+            run_agent(
+                request=prompt,
+                base_url=base_url,
+                headless=True,
+                progress_callback=progress_logger,
+            )
+        )
+    except Exception as exc:
+        append_job_log(app_instance, job_id, f"Task failed: {exc}")
+        update_job_state(app_instance, job_id, status="failed", error=str(exc))
+        return
+    append_job_log(app_instance, job_id, f"Final result: {result}")
+    update_job_state(app_instance, job_id, status="completed", result=result, error=None)
 
 
 def redirect_with_message(route_name: str, message: str | None = None, error: str | None = None) -> RedirectResponse:
@@ -153,3 +215,35 @@ def assign_license_action(email: str = Form(...), license_name: str = Form(...))
     except (LookupError, ValueError) as exc:
         return redirect_with_message("licenses_page", error=str(exc))
     return redirect_with_message("licenses_page", message="License assigned successfully")
+
+
+@app.post("/automation/jobs")
+async def create_automation_job(payload: AutomationRequest, request: Request):
+    prompt = payload.prompt.strip()
+    if not prompt:
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": "Prompt is required."})
+
+    job_id = str(uuid4())
+    base_url = str(request.base_url).rstrip("/")
+    update_job_state(
+        request.app,
+        job_id,
+        id=job_id,
+        prompt=prompt,
+        status="queued",
+        result=None,
+        error=None,
+        logs=[f"Job created for prompt: {prompt}"],
+        last_message="Job created and waiting to start",
+    )
+    asyncio.create_task(asyncio.to_thread(run_automation_job, request.app, job_id, prompt, base_url))
+    return {"job_id": job_id, "status": "queued"}
+
+
+@app.get("/automation/jobs/{job_id}")
+async def get_automation_job(job_id: str, request: Request):
+    ensure_automation_state(request.app)
+    job = request.app.state.automation_jobs.get(job_id)
+    if job is None:
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Job not found."})
+    return job

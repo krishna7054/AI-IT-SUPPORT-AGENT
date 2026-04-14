@@ -5,7 +5,9 @@ import json
 import re
 import sys
 from dataclasses import dataclass
+from inspect import isawaitable
 from typing import Any
+from typing import Callable
 
 from playwright.async_api import Page
 from playwright.async_api import async_playwright
@@ -459,7 +461,20 @@ async def execute_action(page: Page, action: dict[str, Any]) -> str:
     raise ValueError(f"Unsupported action: {action}")
 
 
-async def run_agent(request: str, base_url: str = "http://127.0.0.1:8000", headless: bool = False) -> str:
+async def emit_progress(progress_callback: Callable[[str], Any] | None, message: str) -> None:
+    if progress_callback is None:
+        return
+    result = progress_callback(message)
+    if isawaitable(result):
+        await result
+
+
+async def run_agent(
+    request: str,
+    base_url: str = "http://127.0.0.1:8000",
+    headless: bool = False,
+    progress_callback: Callable[[str], Any] | None = None,
+) -> str:
     task = parse_request(request)
     if task.action not in {"create_user", "reset_password", "unlock_user", "assign_license", "ensure_user_and_assign_license"}:
         raise ValueError(f"Unsupported request: {request}")
@@ -469,20 +484,29 @@ async def run_agent(request: str, base_url: str = "http://127.0.0.1:8000", headl
         raise ValueError("The request must include one of these licenses: Google Workspace, Slack, Zoom, VPN, Okta.")
 
     history: list[dict[str, Any]] = [{"step": 0, "result": f"Parsed task as {task.__dict__}"}]
+    await emit_progress(progress_callback, f"Task received: {request}")
+    await emit_progress(progress_callback, f"Parsed task: action={task.action}, email={task.email}")
 
     async with async_playwright() as playwright:
+        await emit_progress(progress_callback, f"Launching browser in {'headless' if headless else 'visible'} mode")
         browser = await playwright.chromium.launch(headless=headless)
         page = await browser.new_page(viewport={"width": 1400, "height": 1000})
         await page.goto(base_url, wait_until="networkidle")
+        await emit_progress(progress_callback, f"Opened admin panel at {base_url}")
 
         final_message = ""
         for step in range(1, 20):
             page_state = await current_page_summary(page)
             next_action = next_action_locally(task, page_state, history)
+            await emit_progress(
+                progress_callback,
+                f"Step {step}: planning {next_action['action']} on {page_state['title']}",
+            )
 
             result = await execute_action(page, next_action)
             history.append({"step": step, "action": next_action, "result": result})
             print(f"Step {step}: {result}")
+            await emit_progress(progress_callback, f"Step {step}: {result}")
 
             if next_action["action"] == "done":
                 final_message = result
@@ -494,6 +518,7 @@ async def run_agent(request: str, base_url: str = "http://127.0.0.1:8000", headl
             raise RuntimeError("Agent reached the step limit before completing the task.")
 
         await browser.close()
+        await emit_progress(progress_callback, f"Task complete: {final_message}")
 
     return final_message
 
