@@ -199,24 +199,6 @@ The agent:
 - There are no backend API shortcuts for the automation flow.
 - The approach is fast to explain in a 2-minute Loom while still showing clear architecture choices.
 
-## Suggested Loom flow
+### Preview
+<img width="1917" height="871" alt="image" src="https://github.com/user-attachments/assets/b5c5a6d6-b2d5-40c8-a315-01c5061ebe24" />
 
-1. Show the dashboard and seeded users.
-2. Run: `create a new user named Sarah Khan with email sarah@company.com in Finance`
-3. Show that the new user appears in the directory.
-4. Run: `reset password for john@company.com`
-5. Show the updated password on the Security page.
-6. Run: `check if mohit@company.com exists, if not create him in IT, then assign a Slack license`
-7. Optional fourth task: `unlock account for priya@company.com`
-8. Spend the last 30-40 seconds explaining:
-   - FastAPI + SQLite mock panel
-   - Gemini with a local fallback for request understanding and next-step planning
-   - Playwright for browser execution
-   - Generic page-state-driven action loop instead of hardcoded flows
-   - Bonus conditional workflow for create-if-missing then assign-license
-
-## Notes
-
-- This repo is ready for GitHub.
-- The SQLite database is ignored in git and is created automatically.
-- If Gemini quota is exhausted, the agent automatically falls back to deterministic local parsing and planning for the supported task set.
